@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Journal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ========= LOGIN ========= -->
+<div class="auth" id="auth">
+    <div class="login-box">
+        <h1>THE JOURNAL</h1>
+        <input id="username" placeholder="Username">
+        <input id="password" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <button class="link" onclick="createUser()">Create new user</button>
+    </div>
+</div>
+
+<!-- ========= FULLSCREEN EDITOR ========= -->
+<div class="editor" id="editorApp">
+
+    <!-- TOP BAR -->
+    <div class="top">
+        <button onclick="logout()">← Exit</button>
+        <div id="dateLabel"></div>
+        <div class="tools">
+            <button onclick="formatText('bold')"><b>B</b></button>
+            <button onclick="formatText('italic')"><i>I</i></button>
+            <button onclick="formatText('underline')"><u>U</u></button>
+        </div>
+    </div>
+
+    <!-- EDITOR -->
+    <div id="editor" contenteditable="true"></div>
+
+    <!-- BOTTOM BAR -->
+    <div class="bottom">
+        <div class="meta">
+            📷 <input type="file" id="imageInput" accept="image/*" multiple>
+            <div id="imagePreview" class="image-preview"></div>
+            <div id="editor" contenteditable="true"></div>
+<div id="imagePreview" class="image-preview"></div>
+            <input id="location" placeholder="📍 Location">
+            <input id="weather" placeholder="☀️ Weather">
+        </div>
+        <div class="stats">
+            <span id="stats">Words 0 · Characters 0</span>
+            <button class="save" onclick="saveEntry()">Save</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

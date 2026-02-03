@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenJournal - Personal Diary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #cbd5e1;
+        }
+
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .view-transition {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #sidebar {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-text {
+            transition: opacity 0.2s ease;
+            white-space: nowrap;
+        }
+        .collapsed .sidebar-text {
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            display: none;
+        }
+        .collapsed .nav-item {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .collapsed .sidebar-header {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .collapsed .user-section {
+            padding: 1rem;
+            justify-content: center;
+        }
+
+        .media-grid-item:hover .media-caption {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 overflow-hidden h-screen flex">
+
+<!-- App Sidebar -->
+<aside id="sidebar" class="hidden md:flex flex-col w-80 bg-white border-r border-slate-200 relative">
+    <button onclick="toggleSidebar()" class="absolute -right-3 top-10 bg-white border border-slate-200 rounded-full p-1 shadow-sm hover:bg-slate-50 z-20">
+        <i id="sidebar-toggle-icon" data-lucide="chevron-left" class="w-4 h-4 text-slate-400"></i>
+    </button>
+
+    <div class="p-10 sidebar-header flex items-center gap-4 text-indigo-600 transition-all">
+        <i data-lucide="book-open" class="w-8 h-8 shrink-0"></i>
+        <h1 class="text-2xl font-black tracking-tight sidebar-text">ZenJournal</h1>
+    </div>
+
+    <nav class="flex-1 px-6 space-y-3">
+        <button onclick="switchTab('journal')" id="nav-journal" class="nav-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-lg bg-indigo-50 text-indigo-700">
+            <i data-lucide="layout" class="w-6 h-6 shrink-0"></i>
+            <span class="sidebar-text">Timeline</span>
+        </button>
+        <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600">
+            <i data-lucide="calendar" class="w-6 h-6 shrink-0"></i>
+            <span class="sidebar-text">Calendar</span>
+        </button>
+        <button onclick="switchTab('media')" id="nav-media" class="nav-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600">
+            <i data-lucide="image" class="w-6 h-6 shrink-0"></i>
+            <span class="sidebar-text">Media</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600">
+            <i data-lucide="settings" class="w-6 h-6 shrink-0"></i>
+            <span class="sidebar-text">Settings</span>
+        </button>
+    </nav>
+
+    <div class="p-8 border-t border-slate-100">
+        <div class="bg-slate-50 rounded-3xl p-4 flex items-center gap-3 user-section transition-all">
+            <div class="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-600 shrink-0">
+                <i data-lucide="user" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1 min-w-0 sidebar-text">
+                <p class="text-sm font-black truncate text-slate-900" id="user-display-name">Local User</p>
+                <p class="text-[10px] text-slate-400 truncate uppercase tracking-widest font-bold" id="user-status">Local Storage Mode</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- Main View -->
+<main class="flex-1 flex flex-col min-w-0 relative">
+    <header class="h-20 flex items-center justify-between px-10 bg-white/80 backdrop-blur-xl border-b border-slate-200 z-10">
+        <div class="flex-1 max-w-xl">
+            <div class="relative group">
+                <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors w-5 h-5"></i>
+                <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Search your memories..."
+                        class="w-full pl-14 pr-6 py-3 bg-slate-100 border-none rounded-2xl text-base font-medium focus:ring-2 focus:ring-indigo-600 focus:bg-white transition-all outline-none"
+                >
+            </div>
+        </div>
+        <button
+                onclick="openEditor()"
+                class="ml-6 flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-black text-base transition-all shadow-xl shadow-indigo-100 active:scale-95"
+        >
+            <i data-lucide="plus" class="w-5 h-5"></i>
+            <span>Write New</span>
+        </button>
+    </header>
+
+    <div id="view-container" class="flex-1 overflow-y-auto p-10 custom-scrollbar">
+        <!-- Timeline View -->
+        <div id="tab-journal" class="max-w-4xl mx-auto block view-transition">
+            <div class="mb-12">
+                <h2 class="text-4xl font-black text-slate-900 tracking-tight">Chronicle</h2>
+                <p class="text-slate-400 mt-2 font-bold text-lg" id="stats-counter">0 memories captured</p>
+            </div>
+            <div id="entries-grid" class="grid grid-cols-1 gap-8"></div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="tab-calendar" class="max-w-6xl mx-auto hidden view-transition">
+            <div class="bg-white rounded-[3rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100">
+                <h2 class="text-3xl font-black mb-10">Visual History</h2>
+                <div id="calendar-grid"></div>
+            </div>
+        </div>
+
+        <!-- Media View -->
+        <div id="tab-media" class="max-w-6xl mx-auto hidden view-transition">
+            <div class="mb-12">
+                <h2 class="text-4xl font-black text-slate-900 tracking-tight">Media Vault</h2>
+                <p class="text-slate-400 mt-2 font-bold text-lg" id="media-stats">Captured moments</p>
+            </div>
+            <div id="media-gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Gallery Items -->
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="tab-settings" class="max-w-3xl mx-auto hidden view-transition">
+            <h2 class="text-4xl font-black text-slate-900 tracking-tight mb-12">Settings</h2>
+            <div class="space-y-8 pb-20">
+                <!-- Categories Management -->
+                <div class="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-8">Journal Types (Categories)</h3>
+
+                    <!-- Add Category Form -->
+                    <div class="flex flex-wrap gap-3 mb-10 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2">Name</label>
+                            <input type="text" id="new-cat-name" placeholder="Work, Fitness, etc." class="w-full px-5 py-3 rounded-2xl border-none ring-2 ring-slate-200 focus:ring-indigo-500 transition-all font-bold outline-none">
+                        </div>
+                        <div class="w-24">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-2">Icon</label>
+                            <input type="text" id="new-cat-icon" placeholder="💼" class="w-full px-5 py-3 rounded-2xl border-none ring-2 ring-slate-200 focus:ring-indigo-500 transition-all font-bold outline-none text-center">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="addCategory()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl font-black text-sm transition-all shadow-lg active:scale-95">Add</button>
+                        </div>
+                    </div>
+
+                    <!-- Categories List -->
+                    <div id="categories-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div class="bg-white rounded-[2.5rem] p-10 border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-8">Data & Backups</h3>
+                    <p class="text-slate-500 mb-8 font-medium text-lg leading-relaxed">Your data is saved automatically to this browser's local storage. Export all your entries into a portable JSON file for safe keeping.</p>
+                    <button onclick="exportData()" class="flex items-center gap-4 bg-slate-900 hover:bg-black text-white px-10 py-5 rounded-3xl font-black text-lg transition-all shadow-2xl active:scale-95">
+                        <i data-lucide="download" class="w-6 h-6"></i>
+                        Download Journal (.json)
+                    </button>
+                </div>
+
+                <div class="bg-indigo-50 rounded-[2.5rem] p-10 border border-indigo-100 shadow-sm">
+                    <h3 class="text-xl font-black text-indigo-900 mb-2">Local Storage Mode</h3>
+                    <button onclick="clearAllData()" class="mt-6 text-red-600 text-sm font-bold uppercase tracking-widest hover:underline">Clear All Data Forever</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Nav -->
+    <div class="md:hidden flex h-16 bg-white border-t border-slate-200 items-center justify-around px-4">
+        <button onclick="switchTab('journal')" class="p-2 text-indigo-600"><i data-lucide="layout"></i></button>
+        <button onclick="switchTab('calendar')" class="p-2 text-slate-400"><i data-lucide="calendar"></i></button>
+        <button onclick="switchTab('media')" class="p-2 text-slate-400"><i data-lucide="image"></i></button>
+        <button onclick="switchTab('settings')" class="p-2 text-slate-400"><i data-lucide="settings"></i></button>
+    </div>
+</main>
+
+<!-- Modal Editor -->
+<div id="editor-overlay" class="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-6 bg-slate-900/40 backdrop-blur-md hidden opacity-0 transition-opacity">
+    <div class="w-full h-full md:h-auto md:max-w-5xl md:max-h-[90vh] bg-white md:rounded-[3.5rem] shadow-2xl flex flex-col overflow-hidden transform scale-95 transition-transform">
+        <div class="flex items-center justify-between px-6 md:px-10 py-6 border-b border-slate-100">
+            <button onclick="closeEditor()" class="p-2 md:p-3 hover:bg-slate-100 rounded-2xl text-slate-400 transition-colors">
+                <i data-lucide="x" class="w-6 md:w-8 h-6 md:h-8"></i>
+            </button>
+            <div class="flex flex-wrap items-center gap-2 md:gap-4">
+                <div class="flex items-center gap-2">
+                    <select id="entry-type" class="bg-slate-100 border-none rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-w-[100px]"></select>
+                </div>
+                <div class="flex gap-1 md:gap-2 p-1 bg-slate-100 rounded-2xl" id="mood-selector">
+                    <button data-mood="happy" class="p-2 md:p-3 rounded-xl transition-all hover:bg-white"><i data-lucide="smile" class="text-green-500 w-5 h-5"></i></button>
+                    <button data-mood="neutral" class="p-2 md:p-3 rounded-xl transition-all bg-white shadow-sm ring-2 ring-indigo-500"><i data-lucide="meh" class="text-slate-400 w-5 h-5"></i></button>
+                    <button data-mood="sad" class="p-2 md:p-3 rounded-xl transition-all hover:bg-white"><i data-lucide="frown" class="text-red-500 w-5 h-5"></i></button>
+                </div>
+                <button
+                        onclick="saveEntry()"
+                        id="save-button"
+                        class="bg-indigo-600 text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 text-sm md:text-base"
+                >
+                    Save
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 p-8 md:p-14 overflow-y-auto custom-scrollbar">
+            <input
+                    type="text"
+                    id="entry-title"
+                    placeholder="Moment Title..."
+                    class="w-full text-3xl md:text-5xl font-black text-slate-900 placeholder:text-slate-100 border-none focus:ring-0 mb-6 p-0"
+            >
+            <textarea
+                    id="entry-content"
+                    placeholder="Tell your story..."
+                    class="w-full text-lg md:text-2xl text-slate-600 placeholder:text-slate-200 border-none focus:ring-0 min-h-[150px] p-0 resize-none leading-relaxed font-medium mb-8"
+            ></textarea>
+
+            <div id="editor-media-preview" class="space-y-6">
+                <div id="editor-image-preview" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+                <div id="editor-audio-preview" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <div class="px-6 md:px-10 py-4 md:py-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all font-bold text-xs text-slate-500 shadow-sm">
+                    <i data-lucide="image" class="w-4 h-4"></i> Add Photos
+                    <input type="file" id="image-upload" multiple accept="image/*" class="hidden" onchange="handleMediaUpload(this, 'image')">
+                </label>
+                <label class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all font-bold text-xs text-slate-500 shadow-sm">
+                    <i data-lucide="mic" class="w-4 h-4"></i> Add Audio
+                    <input type="file" id="audio-upload" multiple accept="audio/*" class="hidden" onchange="handleMediaUpload(this, 'audio')">
+                </label>
+            </div>
+            <div class="flex items-center gap-3 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                <i data-lucide="calendar" class="w-3 h-3"></i>
+                <span id="editor-date-display">Today</span>
+            </div>
+            <div id="word-count" class="text-slate-400 font-bold text-[10px] uppercase tracking-widest">0 words</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- State ---
+    const STORAGE_KEY = 'zenjournal_local_entries';
+    const SIDEBAR_STATE_KEY = 'zenjournal_sidebar_collapsed';
+    const CATEGORIES_KEY = 'zenjournal_local_categories';
+
+    let entries = [];
+    let categories = [];
+    let currentEditingId = null;
+    let selectedMood = 'neutral';
+    let isSidebarCollapsed = false;
+
+    let currentEntryImages = [];
+    let currentEntryAudio = [];
+
+    const DEFAULT_CATEGORIES = [
+        { name: 'Personal', icon: '🏠' },
+        { name: 'Work', icon: '💼' },
+        { name: 'Idea', icon: '💡' },
+        { name: 'Travel', icon: '✈️' }
+    ];
+
+    // --- Elements Cache ---
+    let sidebar, sidebarToggleIcon, entryGrid, statsCounter, searchInput, editorOverlay, entryTitle, entryContent, entryTypeSelect, moodSelector, wordCountDisplay, editorImagePreview, editorAudioPreview, editorDateDisplay;
+
+    function initElements() {
+        sidebar = document.getElementById('sidebar');
+        sidebarToggleIcon = document.getElementById('sidebar-toggle-icon');
+        entryGrid = document.getElementById('entries-grid');
+        statsCounter = document.getElementById('stats-counter');
+        searchInput = document.getElementById('search-input');
+        editorOverlay = document.getElementById('editor-overlay');
+        entryTitle = document.getElementById('entry-title');
+        entryContent = document.getElementById('entry-content');
+        entryTypeSelect = document.getElementById('entry-type');
+        moodSelector = document.getElementById('mood-selector');
+        wordCountDisplay = document.getElementById('word-count');
+        editorImagePreview = document.getElementById('editor-image-preview');
+        editorAudioPreview = document.getElementById('editor-audio-preview');
+        editorDateDisplay = document.getElementById('editor-date-display');
+    }
+
+    // --- SIDEBAR LOGIC ---
+    function initSidebar() {
+        const savedState = localStorage.getItem(SIDEBAR_STATE_KEY);
+        if (savedState === 'true') {
+            isSidebarCollapsed = true;
+            applySidebarState();
+        }
+    }
+
+    function toggleSidebar() {
+        isSidebarCollapsed = !isSidebarCollapsed;
+        localStorage.setItem(SIDEBAR_STATE_KEY, isSidebarCollapsed);
+        applySidebarState();
+    }
+
+    function applySidebarState() {
+        if (!sidebar) return;
+        if (isSidebarCollapsed) {
+            sidebar.classList.add('collapsed');
+            sidebar.style.width = '88px';
+            sidebarToggleIcon.setAttribute('data-lucide', 'chevron-right');
+        } else {
+            sidebar.classList.remove('collapsed');
+            sidebar.style.width = '320px';
+            sidebarToggleIcon.setAttribute('data-lucide', 'chevron-left');
+        }
+        lucide.createIcons();
+    }
+
+    // --- CATEGORIES LOGIC ---
+    function loadCategories() {
+        const raw = localStorage.getItem(CATEGORIES_KEY);
+        categories = raw ? JSON.parse(raw) : [...DEFAULT_CATEGORIES];
+        renderCategorySettings();
+        updateCategorySelect();
+    }
+
+    function persistCategories() {
+        localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+        renderCategorySettings();
+        updateCategorySelect();
+        renderEntries();
+    }
+
+    function addCategory() {
+        const nameEl = document.getElementById('new-cat-name');
+        const iconEl = document.getElementById('new-cat-icon');
+        const name = nameEl.value.trim();
+        const icon = iconEl.value.trim() || '📝';
+        if (!name) return;
+        categories.push({ name, icon });
+        persistCategories();
+        nameEl.value = '';
+        iconEl.value = '';
+    }
+
+    function deleteCategory(index) {
+        if (categories.length <= 1) return;
+        categories.splice(index, 1);
+        persistCategories();
+    }
+
+    function renderCategorySettings() {
+        const container = document.getElementById('categories-list');
+        if (!container) return;
+        container.innerHTML = categories.map((cat, idx) => `
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">${cat.icon}</span>
+                        <span class="font-bold text-slate-700">${cat.name}</span>
+                    </div>
+                    <button onclick="deleteCategory(${idx})" class="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+        lucide.createIcons();
+    }
+
+    function updateCategorySelect() {
+        if (!entryTypeSelect) return;
+        entryTypeSelect.innerHTML = categories.map(cat => `<option value="${cat.name}">${cat.icon} ${cat.name}</option>`).join('');
+    }
+
+    // --- MEDIA LOGIC ---
+    function handleMediaUpload(input, type) {
+        const files = Array.from(input.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                if (type === 'image') {
+                    currentEntryImages.push(base64);
+                } else {
+                    currentEntryAudio.push({ name: file.name, data: base64 });
+                }
+                renderEditorMediaPreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+        input.value = '';
+    }
+
+    function renderEditorMediaPreviews() {
+        if (!editorImagePreview || !editorAudioPreview) return;
+        editorImagePreview.innerHTML = currentEntryImages.map((img, idx) => `
+                <div class="relative group aspect-video rounded-2xl overflow-hidden border border-slate-200">
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <button onclick="removeEditorMedia(${idx}, 'image')" class="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+
+        editorAudioPreview.innerHTML = currentEntryAudio.map((aud, idx) => `
+                <div class="flex items-center justify-between p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <i data-lucide="volume-2" class="w-5 h-5 text-indigo-600 shrink-0"></i>
+                        <span class="text-xs font-bold text-indigo-900 truncate">${aud.name}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <audio controls class="h-8 max-w-[200px]" src="${aud.data}"></audio>
+                        <button onclick="removeEditorMedia(${idx}, 'audio')" class="p-2 text-indigo-300 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        lucide.createIcons();
+    }
+
+    function removeEditorMedia(idx, type) {
+        if (type === 'image') currentEntryImages.splice(idx, 1);
+        else currentEntryAudio.splice(idx, 1);
+        renderEditorMediaPreviews();
+    }
+
+    // --- DATA ---
+    function loadEntries() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+            try {
+                entries = JSON.parse(raw).map(e => ({ ...e, date: new Date(e.date) })).sort((a, b) => b.date - a.date);
+            } catch(err) {
+                console.error("Corrupt data", err);
+                entries = [];
+            }
+        }
+        renderEntries();
+    }
+
+    function persistEntries() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        renderEntries();
+        if (window.tabContext === 'media') renderMediaVault();
+    }
+
+    function renderEntries() {
+        if (!entryGrid) return;
+        const filter = searchInput.value.toLowerCase();
+        const filtered = entries.filter(e => (e.title || '').toLowerCase().includes(filter) || (e.content || '').toLowerCase().includes(filter));
+        statsCounter.textContent = `${entries.length} memories captured`;
+
+        if (filtered.length === 0) {
+            entryGrid.innerHTML = `<div class="col-span-full py-32 text-center opacity-40"><i data-lucide="ghost" class="w-16 h-16 mx-auto mb-6 text-slate-300"></i><p class="text-2xl font-black text-slate-400">Empty space...</p></div>`;
+        } else {
+            entryGrid.innerHTML = filtered.map(entry => {
+                const typeIcon = categories.find(c => c.name === entry.type)?.icon || '🏠';
+                return `
+                        <div class="group bg-white rounded-[2.5rem] border border-slate-100 p-6 md:p-10 hover:shadow-2xl hover:shadow-slate-200/40 transition-all duration-300 cursor-pointer relative" onclick="openEditor('${entry.id}')">
+                            <div class="flex items-start justify-between mb-8">
+                                <div class="flex items-center gap-4 md:gap-6">
+                                    <div class="w-12 h-12 md:w-16 md:h-16 bg-indigo-50 rounded-[1.2rem] md:rounded-[1.5rem] flex flex-col items-center justify-center text-indigo-600 font-black">
+                                        <span class="text-[8px] md:text-[10px] uppercase">${entry.date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                        <span class="text-lg md:text-2xl leading-none">${entry.date.getDate()}</span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h4 class="text-[8px] md:text-[10px] font-black text-slate-300 uppercase tracking-widest">${entry.date.toLocaleDateString('en-US', { weekday: 'long' })}</h4>
+                                            <span class="text-[8px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full uppercase tracking-tighter">${typeIcon} ${entry.type || 'Personal'}</span>
+                                        </div>
+                                        <h3 class="text-lg md:text-2xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors truncate">${entry.title || "Untitled"}</h3>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="p-2 md:p-3 bg-slate-50 rounded-2xl text-slate-400">${entry.mood === 'happy' ? '😊' : entry.mood === 'sad' ? '😢' : '😐'}</span>
+                                    <button onclick="event.stopPropagation(); deleteEntry('${entry.id}')" class="p-2 md:p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                                </div>
+                            </div>
+
+                            ${entry.images && entry.images.length > 0 ? `
+                                <div class="mb-6 grid grid-cols-2 md:grid-cols-3 gap-2 overflow-hidden rounded-3xl">
+                                    ${entry.images.slice(0, 3).map((img, i) => `
+                                        <div class="aspect-video relative">
+                                            <img src="${img}" class="w-full h-full object-cover">
+                                            ${i === 2 && entry.images.length > 3 ? `<div class="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-black text-xl">+${entry.images.length - 3}</div>` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+
+                            <p class="text-slate-500 text-base md:text-xl line-clamp-3 leading-relaxed font-medium">
+                                ${entry.content || "<i>No writing yet...</i>"}
+                            </p>
+                        </div>
+                    `;
+            }).join('');
+        }
+        lucide.createIcons();
+    }
+
+    // --- GALLERY ---
+    function renderMediaVault() {
+        const gallery = document.getElementById('media-gallery');
+        const mediaStats = document.getElementById('media-stats');
+        if (!gallery) return;
+
+        let allPhotos = [];
+        entries.forEach(e => {
+            if (e.images) {
+                e.images.forEach(img => {
+                    allPhotos.push({ data: img, title: e.title, date: e.date, id: e.id });
+                });
+            }
+        });
+
+        mediaStats.textContent = `${allPhotos.length} moments captured visually`;
+
+        if (allPhotos.length === 0) {
+            gallery.innerHTML = `<div class="col-span-full py-32 text-center opacity-40"><i data-lucide="image" class="w-16 h-16 mx-auto mb-6 text-slate-300"></i><p class="text-2xl font-black text-slate-400">No photos found in your journal.</p></div>`;
+        } else {
+            gallery.innerHTML = allPhotos.map(photo => `
+                    <div class="media-grid-item group relative aspect-square rounded-[2rem] overflow-hidden border border-slate-200 cursor-pointer shadow-sm hover:shadow-xl transition-all" onclick="openEditor('${photo.id}')">
+                        <img src="${photo.data}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="media-caption absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white opacity-0 transform translate-y-2 transition-all duration-300">
+                            <p class="text-xs font-black uppercase tracking-widest opacity-60">${photo.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                            <p class="text-sm font-bold truncate">${photo.title || 'Untitled Moment'}</p>
+                        </div>
+                    </div>
+                `).join('');
+        }
+        lucide.createIcons();
+    }
+
+    // --- EDITOR ACTIONS ---
+    function openEditor(id = null) {
+        currentEditingId = id;
+        updateCategorySelect();
+
+        if (id) {
+            const e = entries.find(x => x.id === id);
+            if (e) {
+                entryTitle.value = e.title || '';
+                entryContent.value = e.content || '';
+                entryTypeSelect.value = e.type || categories[0].name;
+                currentEntryImages = [...(e.images || [])];
+                currentEntryAudio = [...(e.audio || [])];
+                selectedMood = e.mood || 'neutral';
+                if (editorDateDisplay) editorDateDisplay.textContent = e.date.toLocaleDateString('en-US', { dateStyle: 'full' });
+            }
+        } else {
+            entryTitle.value = '';
+            entryContent.value = '';
+            entryTypeSelect.value = categories[0]?.name || '';
+            currentEntryImages = [];
+            currentEntryAudio = [];
+            selectedMood = 'neutral';
+            if (editorDateDisplay) editorDateDisplay.textContent = 'Writing Today...';
+        }
+
+        renderEditorMediaPreviews();
+        setMood(selectedMood);
+        updateWordCount();
+
+        if (editorOverlay) {
+            editorOverlay.classList.remove('hidden');
+            setTimeout(() => {
+                editorOverlay.classList.remove('opacity-0');
+                editorOverlay.firstElementChild.classList.remove('scale-95');
+                editorOverlay.firstElementChild.classList.add('scale-100');
+            }, 10);
+        }
+    }
+    window.openEditor = openEditor;
+
+    function closeEditor() {
+        if (!editorOverlay) return;
+        editorOverlay.classList.add('opacity-0');
+        editorOverlay.firstElementChild.classList.add('scale-95');
+        editorOverlay.firstElementChild.classList.remove('scale-100');
+        setTimeout(() => editorOverlay.classList.add('hidden'), 300);
+    }
+    window.closeEditor = closeEditor;
+
+    function saveEntry() {
+        const content = entryContent.value.trim();
+        if (!content) return;
+        const entryData = {
+            title: entryTitle.value.trim(),
+            content: content,
+            type: entryTypeSelect.value,
+            mood: selectedMood,
+            images: currentEntryImages,
+            audio: currentEntryAudio,
+            updatedAt: new Date()
+        };
+        if (currentEditingId) {
+            const idx = entries.findIndex(e => e.id === currentEditingId);
+            if (idx !== -1) entries[idx] = { ...entries[idx], ...entryData };
+        } else {
+            entries.unshift({ ...entryData, id: Date.now().toString(), date: new Date(), createdAt: new Date() });
+        }
+        persistEntries();
+        closeEditor();
+    }
+    window.saveEntry = saveEntry;
+
+    function deleteEntry(id) {
+        if (confirm("Delete memory forever?")) {
+            entries = entries.filter(e => e.id !== id);
+            persistEntries();
+        }
+    }
+    window.deleteEntry = deleteEntry;
+
+    function switchTab(tab) {
+        window.tabContext = tab;
+        ['journal', 'calendar', 'media', 'settings'].forEach(t => {
+            const el = document.getElementById(`tab-${t}`);
+            const nav = document.getElementById(`nav-${t}`);
+            if (el) el.classList.toggle('hidden', t !== tab);
+            if (nav) {
+                nav.classList.toggle('bg-indigo-50', t === tab);
+                nav.classList.toggle('text-indigo-700', t === tab);
+                nav.classList.toggle('text-slate-400', t !== tab);
+            }
+        });
+        if (tab === 'calendar') renderCalendar();
+        if (tab === 'media') renderMediaVault();
+        if (tab === 'settings') renderCategorySettings();
+        lucide.createIcons();
+    }
+    window.switchTab = switchTab;
+
+    function setMood(mood) {
+        selectedMood = mood;
+        if (!moodSelector) return;
+        moodSelector.querySelectorAll('button').forEach(btn => {
+            const isSelected = btn.dataset.mood === mood;
+            btn.classList.toggle('bg-white', isSelected);
+            btn.classList.toggle('shadow-sm', isSelected);
+            btn.classList.toggle('ring-2', isSelected);
+            btn.classList.toggle('ring-indigo-500', isSelected);
+        });
+    }
+
+    function updateWordCount() {
+        if (!wordCountDisplay) return;
+        const count = entryContent.value.trim().split(/\s+/).filter(w => w).length;
+        wordCountDisplay.textContent = `${count} words`;
+    }
+
+    function exportData() {
+        const blob = new Blob([JSON.stringify({ entries, categories }, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `zenjournal-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    }
+    window.exportData = exportData;
+
+    function clearAllData() {
+        if (confirm("Clear ALL data forever?")) {
+            localStorage.clear();
+            window.location.reload();
+        }
+    }
+    window.clearAllData = clearAllData;
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        if (!grid) return;
+        const today = new Date();
+        let html = `<div class="grid grid-cols-7 gap-2 md:gap-4"><div class="col-span-full grid grid-cols-7 gap-2 md:gap-4 mb-4">`;
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => html += `<div class="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">${d}</div>`);
+        html += `</div>`;
+        for(let i=1; i<=31; i++) {
+            const dayEntries = entries.filter(e => e.date.getDate() === i && e.date.getMonth() === today.getMonth());
+            const hasEntries = dayEntries.length > 0;
+            html += `
+                    <div class="min-h-[80px] md:min-h-[140px] p-2 md:p-3 rounded-2xl border transition-all ${hasEntries ? 'bg-indigo-50/30 border-indigo-100 shadow-sm' : 'bg-slate-50/30 border-transparent'}">
+                        <div class="text-[10px] md:text-sm font-black mb-2 ${hasEntries ? 'text-indigo-600' : 'text-slate-300'}">${i}</div>
+                        <div class="flex flex-col gap-1 overflow-hidden">
+                            ${dayEntries.map(e => `<div class="text-[8px] md:text-[10px] py-1 px-1.5 bg-white border border-indigo-50 rounded-lg text-slate-600 truncate font-semibold cursor-pointer hover:border-indigo-400 shadow-sm" onclick="event.stopPropagation(); openEditor('${e.id}')">${categories.find(c => c.name === e.type)?.icon || ''} ${e.title || 'Untitled'}</div>`).join('')}
+                        </div>
+                    </div>`;
+        }
+        html += `</div>`;
+        grid.innerHTML = html;
+    }
+
+    // --- Init ---
+    window.onload = () => {
+        initElements();
+        initSidebar();
+        loadCategories();
+        loadEntries();
+
+        if (searchInput) searchInput.addEventListener('input', renderEntries);
+        if (entryContent) entryContent.addEventListener('input', updateWordCount);
+        if (moodSelector) moodSelector.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (btn) setMood(btn.dataset.mood);
+        });
+
+        lucide.createIcons();
+    };
+</script>
+</body>
+</html>

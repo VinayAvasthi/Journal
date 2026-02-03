@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenJournal - Personal Diary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            50: '#f5f7ff',
+                            100: '#ebf0fe',
+                            200: '#ced9fd',
+                            300: '#b1c2fb',
+                            400: '#7695f8',
+                            500: '#3b67f5',
+                            600: '#355ddd',
+                            700: '#2c4eb9',
+                            800: '#233e94',
+                            900: '#1d3379',
+                        }
+                    },
+                    borderRadius: {
+                        '4xl': '2rem',
+                        '5xl': '3rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        h1, h2, h3, .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        .view-transition {
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #sidebar { transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-text { transition: opacity 0.3s ease; white-space: nowrap; }
+        .collapsed .sidebar-text { opacity: 0; pointer-events: none; width: 0; display: none; }
+        
+        .nav-item {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 0%;
+            width: 4px;
+            background: #4f46e5;
+            border-radius: 0 4px 4px 0;
+            transition: height 0.3s ease;
+        }
+        
+        .nav-item.active::after {
+            height: 40%;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator,
+        .dark input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .calendar-day {
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day:hover:not(.empty) {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .premium-shadow {
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 4px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+        
+        .dark .premium-shadow {
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .habit-type-btn.active {
+            border-color: #6366f1;
+            background-color: rgba(99, 102, 241, 0.08);
+            color: #6366f1;
+        }
+    </style>
+</head>
+<body class="overflow-hidden h-screen flex bg-[#fcfcfd] text-slate-700 dark:bg-[#02040a] dark:text-slate-300 transition-colors duration-500">
+
+<!-- Sidebar -->
+<aside id="sidebar" class="hidden md:flex flex-col w-72 bg-white border-r border-slate-100 dark:bg-[#0b0f1a] dark:border-slate-800/50 relative shrink-0 z-30">
+    <button onclick="toggleSidebar()" class="absolute -right-3.5 top-12 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-full p-1.5 shadow-lg hover:shadow-indigo-500/10 z-40 transition-all group">
+        <i id="sidebar-toggle-icon" data-lucide="chevron-left" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+    </button>
+
+    <div class="p-8 sidebar-header flex items-center gap-3 transition-all">
+        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight sidebar-text text-slate-900 dark:text-white">ZenJournal</h1>
+    </div>
+
+    <nav class="flex-1 px-4 space-y-1.5">
+        <button onclick="switchTab('journal')" id="nav-journal" class="nav-item active w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="layout-dashboard" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Timeline</span>
+        </button>
+        <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-item w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="calendar-days" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Calendar</span>
+        </button>
+        <button onclick="switchTab('media')" id="nav-media" class="nav-item w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="clapperboard" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Media Vault</span>
+        </button>
+        <button onclick="switchTab('todo')" id="nav-todo" class="nav-item w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="list-checks" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Tasks</span>
+        </button>
+        <button onclick="switchTab('habit')" id="nav-habit" class="nav-item w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="flame" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Habits</span>
+        </button>
+        <div class="py-4 sidebar-text">
+            <div class="h-px bg-slate-100 dark:bg-slate-800 mx-4"></div>
+        </div>
+        <button onclick="switchTab('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all font-semibold text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <i data-lucide="settings-2" class="w-5 h-5 shrink-0"></i>
+            <span class="sidebar-text">Settings</span>
+        </button>
+    </nav>
+
+    <div class="p-6">
+        <div class="bg-slate-50 dark:bg-slate-900/50 rounded-[1.5rem] p-4 flex items-center gap-3 user-section border border-slate-100 dark:border-slate-800 transition-all">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5 shadow-md">
+                <div class="w-full h-full rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
+                    <i data-lucide="user" class="w-5 h-5 text-indigo-500"></i>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0 sidebar-text">
+                <p class="text-xs font-bold truncate text-slate-900 dark:text-white" id="user-display-name">Local Account</p>
+                <p class="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Personal Vault</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 flex flex-col min-w-0 relative">
+    <header class="h-20 flex items-center justify-between px-6 md:px-12 glass border-b border-slate-100 dark:border-slate-800/50 z-20 shrink-0 transition-all">
+        <div class="flex-1 max-w-xl">
+            <div class="relative group">
+                <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4"></i>
+                <input type="text" id="search-input" placeholder="Search memories..." class="w-full pl-12 pr-6 py-2.5 bg-slate-100/50 dark:bg-slate-900/50 border border-transparent focus:border-indigo-500/20 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none text-slate-900 dark:text-slate-100">
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4 ml-6">
+            <button onclick="toggleTheme()" class="p-2.5 bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-indigo-500/30 hover:text-indigo-500 transition-all active:scale-95" title="Toggle Theme">
+                <i id="theme-toggle-icon" data-lucide="moon" class="w-4 h-4"></i>
+            </button>
+            
+            <button onclick="openEditor()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Write</span>
+            </button>
+        </div>
+    </header>
+
+    <div id="view-container" class="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar space-y-10">
+
+        <!-- Journal / Timeline -->
+        <div id="tab-journal" class="max-w-4xl mx-auto block view-transition">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Timeline</h2>
+                <p class="text-slate-400 text-sm font-medium mt-1" id="stats-counter">0 memories captured</p>
+            </div>
+            <div id="entries-grid" class="grid grid-cols-1 gap-6"></div>
+        </div>
+
+        <!-- Calendar -->
+        <div id="tab-calendar" class="max-w-5xl mx-auto hidden view-transition">
+            <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 md:p-10 premium-shadow border border-slate-50 dark:border-slate-800">
+                <div class="flex items-center justify-between mb-10">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">History</h2>
+                        <p class="text-slate-400 text-xs mt-1">Navigate your visual timeline</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all text-slate-400"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <span id="calendar-month-year" class="font-bold text-slate-700 dark:text-slate-200 text-xs px-4 uppercase tracking-widest min-w-[140px] text-center">January 2024</span>
+                        <button onclick="changeMonth(1)" class="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all text-slate-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-3"></div>
+            </div>
+        </div>
+
+        <!-- Media Vault -->
+        <div id="tab-media" class="max-w-6xl mx-auto hidden view-transition">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Gallery</h2>
+                <p class="text-slate-400 text-sm font-medium mt-1" id="media-stats">Captured moments</p>
+            </div>
+            <div id="media-gallery" class="space-y-12 pb-20"></div>
+        </div>
+
+        <!-- Todo View -->
+        <div id="tab-todo" class="max-w-4xl mx-auto hidden view-transition">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Focus</h2>
+                <p class="text-slate-400 text-sm font-medium mt-1" id="todo-stats">0 active tasks</p>
+            </div>
+            <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-slate-100 dark:border-slate-800 premium-shadow mb-10">
+                <div class="flex flex-col gap-6">
+                    <input type="text" id="todo-input" placeholder="Add a focus point..." class="w-full text-xl font-bold bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-6 py-4 focus:ring-4 focus:ring-indigo-500/5 outline-none text-slate-900 dark:text-white placeholder:text-slate-400">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="relative"><i data-lucide="calendar" class="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i><input type="date" id="todo-date" class="pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs font-bold outline-none border border-transparent focus:border-indigo-500/30 transition-all text-slate-600 dark:text-slate-300"></div>
+                            <div class="relative"><i data-lucide="clock" class="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i><input type="time" id="todo-time" class="pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-xs font-bold outline-none border border-transparent focus:border-indigo-500/30 transition-all text-slate-600 dark:text-slate-300"></div>
+                        </div>
+                        <button onclick="addTodo()" class="bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl active:scale-95 transition-all">Create Task</button>
+                    </div>
+                </div>
+            </div>
+            <div id="todo-list" class="space-y-3 pb-20"></div>
+        </div>
+
+        <!-- Habit View -->
+        <div id="tab-habit" class="max-w-4xl mx-auto hidden view-transition">
+            <div class="mb-10 flex items-center justify-between">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Routines</h2>
+                    <p class="text-slate-400 text-sm font-medium mt-1" id="habit-stats">Building consistency...</p>
+                </div>
+                <button onclick="openHabitWizard()" class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-5 py-2.5 rounded-xl font-bold text-sm border border-indigo-100 dark:border-indigo-500/20 hover:bg-indigo-100 transition-all">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> New Habit
+                </button>
+            </div>
+            <div class="mb-12">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Today's Check-in</h3>
+                <div id="habit-checklist" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+            </div>
+            <div class="space-y-6 pb-20">
+                <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Weekly Overview</h3>
+                <div id="habit-progress-list" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="tab-settings" class="max-w-3xl mx-auto hidden view-transition">
+            <h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-10">Settings</h2>
+            <div class="space-y-6 pb-20">
+                <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 md:p-10 border border-slate-100 dark:border-slate-800 premium-shadow">
+                    <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-8">Personalize Categories</h3>
+                    <div class="flex flex-wrap gap-3 mb-8 bg-slate-50 dark:bg-slate-800/30 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                        <input type="text" id="new-cat-name" placeholder="Title" class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-indigo-500 outline-none text-sm font-bold">
+                        <input type="text" id="new-cat-icon" placeholder="Emoji" class="w-20 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 focus:border-indigo-500 outline-none text-center">
+                        <button onclick="addCategory()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm active:scale-95 transition-all">Add</button>
+                    </div>
+                    <div id="categories-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-slate-100 dark:border-slate-800 premium-shadow">
+                        <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Backup</h3>
+                        <button onclick="exportData()" class="w-full flex items-center justify-center gap-3 bg-slate-900 dark:bg-slate-800 text-white px-6 py-4 rounded-2xl font-bold text-sm active:scale-95 transition-all border border-slate-800 dark:border-slate-700">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export Data
+                        </button>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 rounded-4xl p-8 border border-slate-100 dark:border-slate-800 premium-shadow">
+                        <h3 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Danger Zone</h3>
+                        <button onclick="clearAllData()" class="w-full py-4 text-red-500 text-sm font-bold border border-red-500/20 rounded-2xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-tight">Wipe Memory</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Nav -->
+    <div class="md:hidden flex h-20 bg-white dark:bg-[#0b0f1a] border-t border-slate-100 dark:border-slate-800/50 items-center justify-around px-4 shrink-0 pb-safe transition-all glass">
+        <button onclick="switchTab('journal')" class="p-3 text-indigo-600 dark:text-indigo-400"><i data-lucide="layout-dashboard"></i></button>
+        <button onclick="switchTab('calendar')" class="p-3 text-slate-400 dark:text-slate-600"><i data-lucide="calendar-days"></i></button>
+        <button onclick="switchTab('todo')" class="p-3 text-slate-400 dark:text-slate-600"><i data-lucide="list-checks"></i></button>
+        <button onclick="switchTab('habit')" class="p-3 text-slate-400 dark:text-slate-600"><i data-lucide="flame"></i></button>
+        <button onclick="switchTab('settings')" class="p-3 text-slate-400 dark:text-slate-600"><i data-lucide="settings-2"></i></button>
+    </div>
+</main>
+
+<!-- Editor Overlay -->
+<div id="editor-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-6 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity">
+    <div class="w-full h-full md:h-auto md:max-w-5xl md:max-h-[90vh] bg-white dark:bg-[#0f172a] md:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-800/50">
+        <div class="flex items-center justify-between px-8 py-6 border-b border-slate-100 dark:border-slate-800/50 shrink-0">
+            <button onclick="closeEditor()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400 dark:text-slate-500 transition-colors"><i data-lucide="chevron-left" class="w-6 h-6"></i></button>
+            <div class="flex items-center gap-4">
+                <select id="entry-type" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none min-w-[120px] text-slate-700 dark:text-white"></select>
+                <div id="mood-selector" class="flex gap-1.5 p-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                    <button data-mood="happy" onclick="setMood('happy')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-all"><i data-lucide="smile" class="text-green-500 w-4 h-4"></i></button>
+                    <button data-mood="neutral" onclick="setMood('neutral')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-all"><i data-lucide="meh" class="text-slate-400 w-4 h-4"></i></button>
+                    <button data-mood="sad" onclick="setMood('sad')" class="p-2 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-all"><i data-lucide="frown" class="text-red-500 w-4 h-4"></i></button>
+                </div>
+                <button onclick="saveEntry()" id="save-button" class="bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">Save</button>
+            </div>
+        </div>
+        <div class="flex-1 p-10 md:p-16 overflow-y-auto custom-scrollbar">
+            <input type="text" id="entry-title" placeholder="Moment Title..." class="w-full text-4xl font-bold text-slate-900 dark:text-white bg-transparent placeholder:text-slate-200 dark:placeholder:text-slate-800 border-none focus:ring-0 mb-8 p-0 outline-none">
+            <textarea id="entry-content" placeholder="Share your story..." class="w-full text-lg leading-relaxed text-slate-600 dark:text-slate-400 bg-transparent placeholder:text-slate-200 dark:placeholder:text-slate-800 border-none focus:ring-0 min-h-[300px] p-0 resize-none font-medium mb-10 outline-none"></textarea>
+            <div id="editor-media-preview" class="space-y-6">
+                <div id="editor-image-preview" class="grid grid-cols-2 sm:grid-cols-4 gap-4"></div>
+            </div>
+        </div>
+        <div class="px-8 py-5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:shadow-md transition-all font-bold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <i data-lucide="camera" class="w-3.5 h-3.5"></i> Add Photos
+                    <input type="file" id="image-upload" multiple accept="image/*" class="hidden" onchange="handleMediaUpload(this, 'image')">
+                </label>
+            </div>
+            <div class="flex items-center gap-2 text-slate-400 dark:text-slate-600 font-bold text-[10px] uppercase tracking-tighter">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                <input type="date" id="entry-date-input" class="bg-transparent border-none outline-none font-bold cursor-pointer text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-colors">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Habit Wizard Overlay -->
+<div id="habit-wizard" class="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md hidden opacity-0 transition-opacity">
+    <div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl p-10 transform scale-95 transition-transform duration-300 border border-slate-100 dark:border-slate-800">
+        <div id="wizard-step-1">
+            <div class="flex items-center gap-5 mb-10">
+                <div class="w-14 h-14 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400"><i data-lucide="target" class="w-8 h-8"></i></div>
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900 dark:text-white">New Ritual</h3>
+                    <p class="text-slate-400 text-xs">Small steps every day</p>
+                </div>
+            </div>
+            <div class="space-y-8">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 ml-1">Habit Name</label>
+                    <input type="text" id="wiz-habit-name" placeholder="Ex: Daily Reading" class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500/20 text-lg text-slate-900 dark:text-white transition-all">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 ml-1">Visual Symbol</label>
+                    <input type="text" id="wiz-habit-icon" placeholder="✨" class="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-6 py-4 font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500/20 text-center text-3xl text-slate-900 dark:text-white transition-all">
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button onclick="closeHabitWizard()" class="px-8 py-4 font-bold text-slate-400 text-sm hover:text-slate-600 transition-colors">Cancel</button>
+                    <button onclick="goToWizardStep2()" class="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">Next</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="wizard-step-2" class="hidden">
+            <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">Tracking Ritual</h3>
+            <p class="text-slate-400 mb-10 text-sm font-medium">How do you want to measure progress?</p>
+            <div class="grid grid-cols-1 gap-4 mb-10">
+                <button onclick="selectHabitType('yesno')" id="btn-habit-type-yesno" class="habit-type-btn w-full flex items-center justify-between p-6 rounded-[1.5rem] border-2 border-slate-50 dark:border-slate-800 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 active">
+                    <div class="flex items-center gap-5"><div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-600"><i data-lucide="check-circle-2" class="w-5 h-5"></i></div><span class="font-bold text-slate-900 dark:text-slate-200">Confirmation</span></div>
+                    <span class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-600">Checkbox</span>
+                </button>
+            </div>
+            <div class="flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
+                <button onclick="goToWizardStep1()" class="px-8 py-4 font-bold text-slate-400 text-sm">Back</button>
+                <button onclick="completeHabitWizard()" class="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl active:scale-95 transition-all">Save Ritual</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="notification-toast" class="fixed top-6 right-6 z-[200] bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 rounded-3xl shadow-2xl flex items-center gap-5 transform translate-x-[150%] transition-transform duration-700 border border-slate-100 dark:border-slate-800">
+    <div id="notif-icon-box" class="w-11 h-11 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20"><i data-lucide="bell" class="w-5 h-5"></i></div>
+    <div><p id="notif-title" class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Status Update</p><p id="notif-message" class="text-sm font-bold">Action successful</p></div>
+    <button onclick="hideToast()" class="ml-4 text-slate-300 hover:text-slate-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+</div>
+
+<!-- Image Lightbox -->
+<div id="image-lightbox" class="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-6 hidden opacity-0 transition-opacity duration-400" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transform scale-95 transition-transform duration-400">
+</div>
+
+<script>
+    // --- Configuration & Constants ---
+    const STORAGE_KEY = 'zenjournal_local_entries';
+    const CATEGORIES_KEY = 'zenjournal_local_categories';
+    const TODO_KEY = 'zenjournal_local_todos';
+    const HABITS_KEY = 'zenjournal_local_habits';
+    const HABIT_LOGS_KEY = 'zenjournal_local_habit_logs';
+    const THEME_KEY = 'zenjournal_theme';
+    const DEFAULT_CATEGORIES = [{ name: 'Personal', icon: '🏠' }, { name: 'Work', icon: '💼' }, { name: 'Idea', icon: '💡' }, { name: 'Travel', icon: '✈️' }];
+
+    // --- Application State ---
+    let entries = [], categories = [], todos = [], habits = [], habitLogs = {};
+    let currentEditingId = null, selectedMood = 'neutral', isSidebarCollapsed = false;
+    let currentEntryImages = [];
+    let wizardHabitType = 'yesno';
+    let calendarDate = new Date();
+    let currentDayFilter = null; 
+
+    // --- DOM Cache ---
+    let el = {};
+    function updateElements() {
+        const ids = [
+            'sidebar', 'sidebar-toggle-icon', 'entries-grid', 'stats-counter', 'search-input', 'editor-overlay',
+            'entry-title', 'entry-content', 'entry-type', 'mood-selector', 'editor-image-preview',
+            'entry-date-input', 'media-gallery', 'media-stats', 'categories-list',
+            'image-lightbox', 'lightbox-img', 'tab-journal', 'tab-calendar', 'tab-media', 'tab-settings', 'tab-todo',
+            'todo-input', 'todo-date', 'todo-time', 'todo-list', 'todo-stats',
+            'notification-toast', 'notif-message', 'notif-title', 'tab-habit',
+            'habit-checklist', 'habit-progress-list', 'habit-stats', 'habit-wizard', 'calendar-grid', 'calendar-month-year',
+            'theme-toggle-icon'
+        ];
+        ids.forEach(id => el[id] = document.getElementById(id));
+    }
+
+    // --- Utility Functions ---
+    const formatDate = (date) => {
+        const d = new Date(date);
+        return d.toISOString().split('T')[0];
+    };
+
+    function showToast(message, title = "Journal") {
+        el['notif-message'].textContent = message;
+        el['notif-title'].textContent = title;
+        el['notification-toast'].classList.remove('translate-x-[150%]');
+        setTimeout(hideToast, 3500);
+    }
+    window.hideToast = () => el['notification-toast'].classList.add('translate-x-[150%]');
+
+    // --- Theme Logic ---
+    window.toggleTheme = () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        updateThemeIcon();
+    };
+
+    function updateThemeIcon() {
+        const isDark = document.documentElement.classList.contains('dark');
+        el['theme-toggle-icon'].setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+        lucide.createIcons();
+    }
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        updateThemeIcon();
+    }
+
+    // --- Sidebar ---
+    window.toggleSidebar = () => {
+        isSidebarCollapsed = !isSidebarCollapsed;
+        el['sidebar'].classList.toggle('collapsed', isSidebarCollapsed);
+        el['sidebar'].style.width = isSidebarCollapsed ? '90px' : '288px';
+        el['sidebar-toggle-icon'].setAttribute('data-lucide', isSidebarCollapsed ? 'chevron-right' : 'chevron-left');
+        lucide.createIcons();
+    };
+
+    // --- Navigation ---
+    window.switchTab = (tab) => {
+        ['journal', 'calendar', 'media', 'settings', 'todo', 'habit'].forEach(t => {
+            if (el[`tab-${t}`]) el[`tab-${t}`].classList.toggle('hidden', t !== tab);
+            const n = document.getElementById(`nav-${t}`);
+            if (n) {
+                n.classList.toggle('active', t === tab);
+                n.classList.toggle('bg-slate-50', t === tab);
+                n.classList.toggle('dark:bg-slate-800/50', t === tab);
+                n.classList.toggle('text-indigo-600', t === tab);
+                n.classList.toggle('dark:text-indigo-400', t === tab);
+                n.classList.toggle('text-slate-400', t !== tab);
+                n.classList.toggle('dark:text-slate-600', t !== tab);
+            }
+        });
+        if (tab === 'journal') renderEntries();
+        if (tab === 'todo') renderTodos();
+        if (tab === 'calendar') renderCalendar();
+        if (tab === 'media') renderMediaVault();
+        if (tab === 'habit') renderHabitView();
+        if (tab === 'settings') renderCategories();
+        lucide.createIcons();
+    };
+
+    // --- Entry Logic ---
+    window.openEditor = (id = null) => {
+        currentEditingId = id;
+        el['entry-type'].innerHTML = categories.map(c => `<option value="${c.name}">${c.icon} ${c.name}</option>`).join('');
+        
+        if (id) {
+            const entry = entries.find(e => e.id === id);
+            el['entry-title'].value = entry.title || '';
+            el['entry-content'].value = entry.content || '';
+            el['entry-type'].value = entry.type;
+            el['entry-date-input'].value = formatDate(entry.date);
+            currentEntryImages = [...(entry.images || [])];
+            setMood(entry.mood || 'neutral');
+        } else {
+            el['entry-title'].value = '';
+            el['entry-content'].value = '';
+            el['entry-date-input'].value = formatDate(new Date());
+            currentEntryImages = [];
+            setMood('neutral');
+        }
+        renderEditorMedia();
+        el['editor-overlay'].classList.remove('hidden');
+        setTimeout(() => {
+            el['editor-overlay'].classList.remove('opacity-0');
+            el['editor-overlay'].firstElementChild.classList.remove('scale-95');
+        }, 10);
+    };
+
+    window.closeEditor = () => {
+        el['editor-overlay'].classList.add('opacity-0');
+        el['editor-overlay'].firstElementChild.classList.add('scale-95');
+        setTimeout(() => el['editor-overlay'].classList.add('hidden'), 300);
+    };
+
+    window.setMood = (m) => {
+        selectedMood = m;
+        el['mood-selector'].querySelectorAll('button').forEach(b => {
+            b.classList.toggle('ring-2', b.dataset.mood === m);
+            b.classList.toggle('ring-indigo-500/20', b.dataset.mood === m);
+            b.classList.toggle('bg-white', b.dataset.mood === m);
+            b.classList.toggle('dark:bg-slate-700', b.dataset.mood === m);
+        });
+    };
+
+    window.handleMediaUpload = (input, type) => {
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentEntryImages.push(e.target.result);
+                renderEditorMedia();
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    function renderEditorMedia() {
+        el['editor-image-preview'].innerHTML = currentEntryImages.map((img, i) => `
+            <div class="relative group aspect-square rounded-2xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800">
+                <img src="${img}" class="w-full h-full object-cover">
+                <button onclick="currentEntryImages.splice(${i},1);renderEditorMedia()" class="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    window.saveEntry = () => {
+        const title = el['entry-title'].value.trim();
+        const content = el['entry-content'].value.trim();
+        if (!content && !title) return showToast("Draft is empty", "Wait");
+
+        const dateVal = el['entry-date-input'].value;
+        const entryDate = dateVal ? new Date(dateVal + "T12:00:00") : new Date();
+
+        const data = {
+            id: currentEditingId || Date.now().toString(),
+            title, content, 
+            type: el['entry-type'].value,
+            mood: selectedMood,
+            images: currentEntryImages,
+            date: entryDate.toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        if (currentEditingId) {
+            const i = entries.findIndex(e => e.id === currentEditingId);
+            entries[i] = data;
+        } else {
+            entries.unshift(data);
+        }
+        
+        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        closeEditor();
+        renderEntries();
+        showToast("Memory saved safely.");
+    };
+
+    function renderEntries() {
+        const searchVal = (el['search-input']?.value || '').toLowerCase();
+        
+        const filtered = entries.filter(e => {
+            const matchesSearch = (e.title || '').toLowerCase().includes(searchVal) || (e.content || '').toLowerCase().includes(searchVal);
+            if (!currentDayFilter) return matchesSearch;
+            const entryDateStr = formatDate(new Date(e.date));
+            return matchesSearch && entryDateStr === currentDayFilter;
+        });
+        
+        el['stats-counter'].textContent = `${filtered.length} captured moments`;
+        el['entries-grid'].innerHTML = filtered.map(e => {
+            const dateObj = new Date(e.date);
+            const cat = categories.find(c => c.name === e.type) || { icon: '📝' };
+            const moodMap = { happy: '😊', neutral: '😐', sad: '😢' };
+            return `
+                <div class="group bg-white dark:bg-[#0b0f1a] rounded-[2.5rem] p-8 md:p-10 premium-shadow border border-slate-100 dark:border-slate-800/50 hover:border-indigo-500/20 transition-all cursor-pointer relative" onclick="openEditor('${e.id}')">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                        <div class="flex gap-5">
+                            <div class="w-14 h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl flex flex-col items-center justify-center font-bold text-slate-900 dark:text-white shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <span class="text-[9px] uppercase tracking-widest text-slate-400">${dateObj.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                <span class="text-xl leading-none mt-0.5">${dateObj.getDate()}</span>
+                            </div>
+                            <div>
+                                <h4 class="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em] mb-1.5">${dateObj.toLocaleDateString('en-US', { weekday: 'long' })} • ${cat.icon} ${e.type}</h4>
+                                <h3 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">${e.title || "Untitled"}</h3>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700/50 text-xl">${moodMap[e.mood] || '😐'}</span>
+                            <button onclick="event.stopPropagation();deleteEntry('${e.id}')" class="w-12 h-12 flex items-center justify-center text-slate-200 dark:text-slate-700 hover:text-red-500 md:opacity-0 group-hover:opacity-100 transition-all"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-slate-500 dark:text-slate-400 text-lg leading-relaxed line-clamp-3 font-medium">${e.content || ""}</p>
+                    ${e.images?.length > 0 ? `<div class="mt-8 flex gap-3 overflow-hidden">${e.images.slice(0, 4).map(img => `<img src="${img}" class="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-800 shadow-sm transition-transform hover:scale-110">`).join('')}${e.images.length > 4 ? `<div class="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">+${e.images.length - 4}</div>` : ''}</div>` : ''}
+                </div>`;
+        }).join('');
+        lucide.createIcons();
+    }
+
+    window.deleteEntry = (id) => {
+        if (!confirm("Permanently delete this memory?")) return;
+        entries = entries.filter(e => e.id !== id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        renderEntries();
+        showToast("Memory deleted.");
+    };
+
+    // --- Todo Logic ---
+    window.addTodo = () => {
+        const text = el['todo-input'].value.trim();
+        const date = el['todo-date'].value;
+        const time = el['todo-time'].value;
+        if (!text) return;
+
+        const todo = { id: Date.now().toString(), text, date, time, completed: false };
+        todos.unshift(todo);
+        el['todo-input'].value = '';
+        saveTodos();
+        showToast("Task created");
+    };
+
+    function saveTodos() {
+        localStorage.setItem(TODO_KEY, JSON.stringify(todos));
+        renderTodos();
+    }
+
+    function renderTodos() {
+        el['todo-stats'].textContent = `${todos.filter(t => !t.completed).length} active focus points`;
+        el['todo-list'].innerHTML = todos.map(t => `
+            <div class="bg-white dark:bg-[#0b0f1a] rounded-[1.75rem] p-5 flex items-center justify-between group border border-slate-100 dark:border-slate-800/50 premium-shadow transition-all hover:border-indigo-500/10">
+                <div class="flex items-center gap-5 flex-1">
+                    <button onclick="toggleTodo('${t.id}')" class="w-9 h-9 rounded-2xl border-2 flex items-center justify-center transition-all ${t.completed ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'border-slate-100 dark:border-slate-800'}">
+                        ${t.completed ? '<i data-lucide="check" class="w-5 h-5"></i>' : ''}
+                    </button>
+                    <div class="${t.completed ? 'opacity-30 line-through' : ''}">
+                        <p class="font-bold text-base text-slate-800 dark:text-slate-200">${t.text}</p>
+                        ${t.date ? `<p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5"><i data-lucide="calendar" class="inline w-2.5 h-2.5 mr-1"></i> ${t.date} ${t.time || ''}</p>` : ''}
+                    </div>
+                </div>
+                <button onclick="deleteTodo('${t.id}')" class="p-2 text-slate-200 dark:text-slate-700 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    window.toggleTodo = (id) => { const t = todos.find(x => x.id === id); if (t) { t.completed = !t.completed; saveTodos(); } };
+    window.deleteTodo = (id) => { todos = todos.filter(x => x.id !== id); saveTodos(); };
+
+    // --- Calendar ---
+    window.changeMonth = (dir) => {
+        calendarDate.setMonth(calendarDate.getMonth() + dir);
+        renderCalendar();
+    };
+
+    function renderCalendar() {
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        el['calendar-month-year'].textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(calendarDate);
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        const entryDays = entries.reduce((acc, e) => {
+            const d = new Date(e.date);
+            if (d.getMonth() === month && d.getFullYear() === year) {
+                const day = d.getDate();
+                if (!acc[day]) acc[day] = [];
+                acc[day].push(e);
+            }
+            return acc;
+        }, {});
+
+        let html = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<div class="text-center text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase py-4 tracking-tighter">${d}</div>`).join('');
+        
+        for (let i = 0; i < firstDay; i++) html += `<div class="h-24 md:h-32 opacity-0 empty"></div>`;
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayEntries = entryDays[i];
+            const hasEntry = !!dayEntries;
+            const mainTitle = hasEntry ? (dayEntries[0].title || "Untitled") : "";
+            const moreCount = hasEntry && dayEntries.length > 1 ? dayEntries.length - 1 : 0;
+
+            html += `
+                <div class="calendar-day h-24 md:h-32 rounded-3xl border border-slate-50 dark:border-slate-800/30 flex flex-col items-center justify-start p-3 gap-2 cursor-pointer bg-[#fdfdfe] dark:bg-slate-900/20 ${hasEntry ? 'has-entry' : 'text-slate-300 dark:text-slate-700 font-bold'}" onclick="openDateEntries(${i})">
+                    <span class="text-sm font-bold">${i}</span>
+                    ${hasEntry ? `
+                        <div class="w-full flex flex-col items-center">
+                            <p class="text-[9px] font-bold leading-tight text-center truncate w-full px-1 text-indigo-500 dark:text-indigo-400/80">
+                                ${mainTitle}
+                            </p>
+                            ${moreCount > 0 ? `<p class="text-[7px] font-black text-indigo-300 dark:text-indigo-900 mt-1 uppercase">+${moreCount} items</p>` : ''}
+                        </div>
+                    ` : ''}
+                </div>`;
+        }
+        el['calendar-grid'].innerHTML = html;
+    }
+
+    window.openDateEntries = (day) => {
+        const targetDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day);
+        currentDayFilter = formatDate(targetDate); 
+        switchTab('journal');
+        renderEntries(); 
+        showToast(`Focusing: ${targetDate.toLocaleDateString()}`);
+        
+        const clearBtn = document.createElement('button');
+        clearBtn.id = "temp-clear-filter";
+        clearBtn.className = "inline-flex items-center gap-2 mt-4 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded-xl border border-indigo-100 dark:border-indigo-500/20";
+        clearBtn.innerHTML = "<i data-lucide='x-circle' class='w-3 h-3'></i> Viewing specific date. Reset?";
+        clearBtn.onclick = () => {
+            currentDayFilter = null;
+            renderEntries();
+            clearBtn.remove();
+        };
+        const statsBox = el['stats-counter'].parentNode;
+        if (!document.getElementById('temp-clear-filter')) statsBox.appendChild(clearBtn);
+        lucide.createIcons();
+    };
+
+    // --- Media Vault ---
+    function renderMediaVault() {
+        const mediaByDate = {};
+        let totalMediaCount = 0;
+
+        const sortedEntries = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sortedEntries.forEach(e => {
+            if (e.images && e.images.length > 0) {
+                const dateKey = formatDate(new Date(e.date));
+                if (!mediaByDate[dateKey]) mediaByDate[dateKey] = [];
+                e.images.forEach(src => {
+                    mediaByDate[dateKey].push({ src, title: e.title || 'Untitled' });
+                    totalMediaCount++;
+                });
+            }
+        });
+
+        el['media-stats'].textContent = `${totalMediaCount} visual memories`;
+
+        const sortedDates = Object.keys(mediaByDate).sort((a, b) => new Date(b) - new Date(a));
+        
+        if (sortedDates.length === 0) {
+            el['media-gallery'].innerHTML = `
+                <div class="text-center py-32 opacity-20">
+                    <i data-lucide="shapes" class="w-16 h-16 mx-auto mb-6"></i>
+                    <p class="font-bold text-lg">Your gallery is empty</p>
+                </div>`;
+            lucide.createIcons();
+            return;
+        }
+
+        el['media-gallery'].innerHTML = sortedDates.map(dateKey => {
+            const dateObj = new Date(dateKey + "T12:00:00");
+            const readableDate = dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const imagesHtml = mediaByDate[dateKey].map(m => `
+                <div class="relative aspect-square rounded-[2rem] overflow-hidden group cursor-pointer shadow-md border border-white dark:border-slate-800" onclick="openLightbox('${m.src}')">
+                    <img src="${m.src}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-5">
+                        <p class="text-white text-[9px] font-bold uppercase tracking-widest truncate">${m.title}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="space-y-6">
+                    <h3 class="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-600 ml-4">
+                        ${readableDate}
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                        ${imagesHtml}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    window.openLightbox = (src) => { el['lightbox-img'].src = src; el['image-lightbox'].classList.remove('hidden'); setTimeout(() => { el['image-lightbox'].classList.remove('opacity-0'); el['image-lightbox'].firstElementChild.classList.remove('scale-95'); }, 10); };
+    window.closeLightbox = () => { el['image-lightbox'].classList.add('opacity-0'); el['image-lightbox'].firstElementChild.classList.add('scale-95'); setTimeout(() => el['image-lightbox'].classList.add('hidden'), 400); };
+
+    // --- Habits ---
+    window.openHabitWizard = () => {
+        el['habit-wizard'].classList.remove('hidden');
+        setTimeout(() => el['habit-wizard'].classList.remove('opacity-0'), 10);
+        goToWizardStep1();
+    };
+    window.closeHabitWizard = () => { el['habit-wizard'].classList.add('opacity-0'); setTimeout(() => el['habit-wizard'].classList.add('hidden'), 300); };
+    window.goToWizardStep1 = () => { document.getElementById('wizard-step-1').classList.remove('hidden'); document.getElementById('wizard-step-2').classList.add('hidden'); };
+    window.goToWizardStep2 = () => { 
+        const name = document.getElementById('wiz-habit-name').value.trim();
+        if (!name) return showToast("Ritual needs a name", "Attention");
+        document.getElementById('wizard-step-1').classList.add('hidden'); 
+        document.getElementById('wizard-step-2').classList.remove('hidden'); 
+        selectHabitType('yesno');
+    };
+    
+    window.selectHabitType = (type) => {
+        wizardHabitType = type;
+        document.querySelectorAll('.habit-type-btn').forEach(btn => {
+            const isTarget = btn.id === `btn-habit-type-${type}`;
+            btn.classList.toggle('active', isTarget);
+            btn.classList.toggle('border-indigo-500', isTarget);
+        });
+    };
+
+    window.completeHabitWizard = () => {
+        const name = document.getElementById('wiz-habit-name').value.trim();
+        const icon = document.getElementById('wiz-habit-icon').value.trim() || '🌱';
+        if (!name) return;
+        habits.push({ id: Date.now().toString(), name, icon, type: wizardHabitType, createdAt: new Date().toISOString() });
+        localStorage.setItem(HABITS_KEY, JSON.stringify(habits));
+        document.getElementById('wiz-habit-name').value = '';
+        document.getElementById('wiz-habit-icon').value = '';
+        closeHabitWizard();
+        renderHabitView();
+        showToast("Ritual initiated");
+    };
+
+    window.updateHabitValue = (id, val) => {
+        const today = formatDate(new Date());
+        if (!habitLogs[today]) habitLogs[today] = {};
+        habitLogs[today][id] = val;
+        localStorage.setItem(HABIT_LOGS_KEY, JSON.stringify(habitLogs));
+        renderHabitView();
+    };
+
+    function renderHabitView() {
+        const todayStr = formatDate(new Date());
+        el['habit-stats'].textContent = `${habits.length} rituals tracking`;
+        
+        el['habit-checklist'].innerHTML = habits.map(h => {
+            const done = habitLogs[todayStr]?.[h.id];
+            return `
+                <div class="bg-white dark:bg-[#0b0f1a] rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800/50 flex items-center justify-between group premium-shadow">
+                    <div class="flex items-center gap-5 overflow-hidden">
+                        <span class="text-3xl">${h.icon}</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200 truncate text-sm">${h.name}</span>
+                    </div>
+                    <button onclick="updateHabitValue('${h.id}', ${!done})" class="w-11 h-11 rounded-2xl border-2 flex items-center justify-center transition-all ${done ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-500/20' : 'border-slate-100 dark:border-slate-800 text-transparent'}">
+                        ${done ? '<i data-lucide="check" class="w-6 h-6"></i>' : ''}
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        el['habit-progress-list'].innerHTML = habits.map(h => `
+            <div class="bg-white dark:bg-[#0b0f1a] rounded-4xl border border-slate-100 dark:border-slate-800/50 p-8 flex flex-col md:flex-row md:items-center justify-between gap-8 premium-shadow transition-all hover:border-indigo-500/10">
+                <div class="flex items-center gap-6">
+                    <span class="text-4xl p-5 bg-slate-50 dark:bg-slate-800 rounded-[2.25rem] border border-white dark:border-slate-700 shadow-inner">${h.icon}</span>
+                    <div><h4 class="font-bold text-xl text-slate-900 dark:text-white">${h.name}</h4><p class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mt-1">Consistency Tracker</p></div>
+                </div>
+                <button onclick="if(confirm('Stop this ritual?')){habits=habits.filter(x=>x.id!=='${h.id}');localStorage.setItem(HABITS_KEY,JSON.stringify(habits));renderHabitView()}" class="p-3 text-slate-200 dark:text-slate-800 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-6 h-6"></i></button>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    // --- Settings & Categories ---
+    function renderCategories() {
+        el['categories-list'].innerHTML = categories.map(c => `
+            <div class="bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-5 flex items-center justify-between border border-slate-100 dark:border-slate-800/50 group hover:bg-white dark:hover:bg-slate-800 transition-all">
+                <div class="flex items-center gap-4"><span class="text-xl group-hover:scale-125 transition-transform">${c.icon}</span><span class="font-bold text-slate-700 dark:text-slate-300 text-sm">${c.name}</span></div>
+                <button onclick="deleteCategory('${c.name}')" class="text-slate-300 dark:text-slate-700 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    window.addCategory = () => {
+        const name = document.getElementById('new-cat-name').value.trim();
+        const icon = document.getElementById('new-cat-icon').value.trim();
+        if (!name || !icon) return;
+        categories.push({ name, icon });
+        localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+        document.getElementById('new-cat-name').value = '';
+        document.getElementById('new-cat-icon').value = '';
+        renderCategories();
+        showToast("Category added");
+    };
+
+    window.deleteCategory = (name) => {
+        categories = categories.filter(c => c.name !== name);
+        localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+        renderCategories();
+    };
+
+    window.exportData = () => {
+        const allData = { entries, categories, todos, habits, habitLogs };
+        const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const mode = document.documentElement.classList.contains('dark') ? 'Dark' : 'Light';
+        a.download = `ZenJournal_Export_${mode}_${formatDate(new Date())}.json`;
+        a.click();
+        showToast("Export complete");
+    };
+
+    window.clearAllData = () => {
+        if (!confirm("This will permanently wipe all local memories. Proceed?")) return;
+        localStorage.clear();
+        window.location.reload();
+    };
+
+    // --- Boot ---
+    window.onload = () => {
+        updateElements();
+        initTheme();
+        
+        entries = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        categories = JSON.parse(localStorage.getItem(CATEGORIES_KEY)) || [...DEFAULT_CATEGORIES];
+        todos = JSON.parse(localStorage.getItem(TODO_KEY)) || [];
+        habits = JSON.parse(localStorage.getItem(HABITS_KEY)) || [];
+        habitLogs = JSON.parse(localStorage.getItem(HABIT_LOGS_KEY)) || {};
+
+        if (el['search-input']) el['search-input'].addEventListener('input', () => {
+            currentDayFilter = null; 
+            const clearBtn = document.getElementById('temp-clear-filter');
+            if(clearBtn) clearBtn.remove();
+            renderEntries();
+        });
+        
+        switchTab('journal');
+    };
+</script>
+</body>
+</html>
